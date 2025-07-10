@@ -48,6 +48,10 @@ Vistrone2019
 | UAV-DETR[9]    |    640    |  20.3	|48.6	  |29.8        |
 | ED-DETR(Our)  |    640    | 20.1 |  	**49.9** 	|**32.0**       |
 
+We also tested the performance of other models on the PR curve as shown in the figure below:
+![pr_curves_visdrone](https://github.com/user-attachments/assets/3fbc151c-a0b6-4de9-a145-8bf08e6ac471)
+
+
 ## Training 
 ```
 python train.py
