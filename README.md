@@ -1,8 +1,7 @@
 # An edge-guided dual-branch feature optimization network for enhanced small object detection in UAV images 
 Official PyTorch implementation of **ED-DETR**.
 
-[Lightweight Adaptive Feature Selection Network for Enhanced Small Object Detection in UAV Imagery]
-Jinxia Yu, Jie Wu, Yongli Tang
+Jie Wu, Jinxia Yu, Yongli Tang and Mingfu Zhu
 
 
 <details>
@@ -26,8 +25,8 @@ It is important to include a script in ultralytics/cfg/datasets/VisDrone. yaml t
 ## Installation
 `conda` virtual environment is recommended. 
 ```
-conda create -n LWSDet python=3.10
-conda activate LWSDet
+conda create -n EDDETR python=3.10
+conda activate EDDETR
 pip install -r requirements.txt
 pip install -e .
 ```
@@ -37,15 +36,15 @@ Vistrone2019
 
 | Model          | Test Size | Params | mAP_50(%) |  mAP_50:95(%)   | 
 |:---------------| :-------: |:-------:|:--------:|:--------------:|
-| YOLOX-M[1]     |   640     |   25.29 | 	34.5   |   	20.9  |
-| YOLOv8m[2]     |    640    |	25.86  |	42.3   |	25.8    |
-| YOLOv9m[3]       |   640 | 	20.17 	|44.5	  |26.62    |
-| YOLOv10m[4] |    640    |  20.14  |	42.1	 | 27.27      | 
-| YOLOv11m [5]     |    640    |  20.15 |	44.4  |	27.2     | 
-| YOLOv12m[6]     |    640    | 21.61 	|  43.5 	|  26.5    | 
-| PPYOLOE-l[7]    |    640    | 52.26   |	47.9	   |31.6       |
-| RT-DETR-r18[8]    |    640    | 20.0 |	46.2	|  29.03      |
-| UAV-DETR[9]    |    640    |  20.3	|48.6	  |29.8        |
+| YOLOX-M    |   640     |   25.29 | 	34.5   |   	20.9  |
+| YOLOv8m    |    640    |	25.86  |	42.3   |	25.8    |
+| YOLOv9m      |   640 | 	20.17 	|44.5	  |26.62    |
+| YOLOv10m |    640    |  20.14  |	42.1	 | 27.27      | 
+| YOLOv11m      |    640    |  20.15 |	44.4  |	27.2     | 
+| YOLOv12m     |    640    | 21.61 	|  43.5 	|  26.5    | 
+| PPYOLOE-l    |    640    | 52.26   |	47.9	   |31.6       |
+| RT-DETR-r18    |    640    | 20.0 |	46.2	|  29.03      |
+| UAV-DETR    |    640    |  20.3	|48.6	  |29.8        |
 | ED-DETR(Our)  |    640    | 20.1 |  	**49.9** 	|**32.0**       |
 
 We also tested the performance of other models on the PR curve as shown in the figure below:
@@ -73,21 +72,6 @@ Thanks for the great implementations!
 ## Citation
 If our code or models help your work, please cite our paper:
 
-```BibTeX
+```
 Our article has not been published yet, we will update it once it is published.
 ```
-References:
-
-[1] Lin T. Focal Loss for Dense Object Detection[J]. arXiv preprint arXiv:1708.02002, 2017.
-
-[2] Chen N, Li Y, Yang Z, et al. LODNU: lightweight object detection network in UAV vision[J]. The Journal of Supercomputing, 2023, 79(9): 10117-10138.
-
-[3] Deng L, Bi L, Li H, et al. Lightweight aerial image object detection algorithm based on improved YOLOv5s[J]. Scientific reports, 2023, 13(1): 7817.
-
-[4] A. Farhadi and J. Redmon. Yolov3: An incremental improvement. Computer vision and pattern recognition. 1804, 1–6(2018).
-
-[5] G. Jocher. Ultralytics YOLOv5 version 7.0. url: https://github.com/ultralytics/yolov5(2020)
-
-[6] A. Wang, H. Chen, L. Liu, K. Chen, Z. Lin, J. Han, and G. Ding. Yolov10: Real-time end-to-end object detection. arXiv preprint arXiv:2405.14458.(2024).
-
-
