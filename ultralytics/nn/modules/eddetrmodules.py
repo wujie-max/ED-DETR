@@ -112,57 +112,114 @@ class LSUnit(nn.Module):
 class DFEA(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1,
                  bias=True,):
-        super(DAConv, self).__init__()
+        super(DFEA, self).__init__()
         self.padding = padding
-        self.stride = strideDFEA
+        self.stride = stride
         self.bias = bias
-        self.inp_dim=in_channels
-        self.out_dim=out_channels
-        self.kernel_size = kernel_size 
-        self.stride = stride 
-        self.padding = padding 
+        self.inp_dim = in_channels
+        self.out_dim = out_channels
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+        self.groups = groups
+        self.deploy = deploy
 
         self.cac = HTUnit(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size
-                              ,stride=stride,padding=padding,dilation=dilation,groups=groups,bias=bias)
+                          , stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)
         self.cdc = LSUnit(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size
-                              , stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)
+                          , stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)
         self.register_parameter('cac_theta', nn.Parameter(torch.tensor(1.0)))
         self.register_parameter('cdc_theta', nn.Parameter(torch.tensor(1.0)))
-        # print("Using {} \n  ".format(self.__class__.__name__))
+        self.con1x1 = nn.Sequential(nn.Conv2d(out_channels, out_channels, 1, 1, 0, bias=True),
+                                    nn.BatchNorm2d(out_channels))
+        self.act = nn.SiLU()
 
-    def forward(self,x):
+    def forward(self, x):
+        if self.deploy:
+            self.equivalent_conv.weight.data = self.equivalent_conv.weight.data.to(x.device)
+            self.equivalent_conv.bias.data = self.equivalent_conv.bias.data.to(x.device)
+            return self.act(self.equivalent_conv(x))
+        else:
+            return self.act(self.con1x1(torch.sigmoid(self.cac_theta) * self.cac(x) \
+                               + torch.sigmoid(self.cdc_theta) * self.cdc(x)))
 
-        return torch.sigmoid(self.cac_theta)*self.cac(x) \
-                   + torch.sigmoid(self.cdc_theta)*self.cdc(x)
+    def get_equivalent_kernel_bias(self):
+        # 获取原始卷积参数
+        W3, b3 = self.re_para()
+        W1, b1 = self._get_kernel_bias(self.con1x1)
 
+        # 计算等效权重
+        C_final, C_out, _, _ = W1.shape
+        C_in = W3.shape[1]
+        W_eq = torch.zeros(C_final, C_in, 3, 3)
+        for k in range(C_final):
+            for i in range(C_in):
+                for m in range(3):
+                    for n in range(3):
+                        W_eq[k, i, m, n] = (W1[k, :, 0, 0] * W3[:, i, m, n]).sum()
+
+        # 计算等效偏置
+        b_eq = (W1.squeeze() @ b3) + b1
+
+        # 构建等效卷积层
+        fused_conv = nn.Conv2d(C_in, C_final, kernel_size=3, padding=1)
+        fused_conv.weight.data = W_eq
+        fused_conv.bias.data = b_eq
+        return W_eq, b_eq
+
+    def _get_kernel_bias(self, module):
+        """
+        提取卷积层的卷积核和偏置
+        """
+        kernel = module[0].weight.data
+        bias = module[0].bias.data if module[0].bias is not None else torch.zeros_like(module[1].bias.data)
+
+        # 将BatchNorm参数合并到卷积核和偏置中
+        if isinstance(module[1], nn.BatchNorm2d):
+            bn_weight = module[1].weight.data
+            bn_bias = module[1].bias.data
+            bn_running_mean = module[1].running_mean
+            bn_running_var = module[1].running_var
+
+            eps = module[1].eps
+            std = torch.sqrt(bn_running_var + eps)
+
+            kernel = kernel * (bn_weight.view(-1, 1, 1, 1) / std.view(-1, 1, 1, 1))
+            bias = (bias - bn_running_mean) * (bn_weight / std) + bn_bias
+
+        return kernel, bias
 
     def re_para(self):
-        k = self.cac.weight.data.sum( dim=[2, 3] )
-        loc = int(self.cac.weight.size(3) /2)
-        cac_k = torch.clone (self.cac.weight.data)
-        cac_k[:,:,loc,loc] += k
+        k = self.cac.weight.data.sum(dim=[2, 3])
+        loc = int(self.cac.weight.size(3) / 2)
+        cac_k = torch.clone(self.cac.weight.data)
+        cac_k[:, :, loc, loc] += k
 
         k = self.cdc.weight.data.sum(dim=[2, 3])
         loc = int(self.cdc.weight.size(3) / 2)
         cdc_k = torch.clone(self.cdc.weight.data)
         cdc_k[:, :, loc, loc] -= k
 
-        self.K = torch.sigmoid(self.cac_theta)*cac_k + torch.sigmoid(self.cdc_theta)*cdc_k
+        self.K = torch.sigmoid(self.cac_theta) * cac_k + torch.sigmoid(self.cdc_theta) * cdc_k
         self.K = self.K.to(self.cac.weight.device)
 
-        if self.cac.bias  is not None:
-            self.B = torch.sigmoid(self.cac_theta)*self.cac.bias.data \
-                     + torch.sigmoid(self.cdc_theta)*self.cdc.bias.data
+        if self.cac.bias is not None:
+            self.B = torch.sigmoid(self.cac_theta) * self.cac.bias.data \
+                     + torch.sigmoid(self.cdc_theta) * self.cdc.bias.data
             self.B = self.B.to(self.cac.weight.device)
         else:
             self.B = None
+        return self.K, self.B
 
-    def test_forward(self,x):
-        self.re_para()
-        self.K = self.K.to(x.device)
-        if self.B is not None:
-            self.B = self.B.to(x.device)
-        return F.conv2d(input=x , weight=self.K,bias=self.B,padding=self.padding,stride=self.stride)
+    def forward_fused(self):
+        """
+        切换到部署模式
+        """
+        self.equivalent_conv = nn.Conv2d(self.out_dim, self.out_dim, kernel_size=3, stride=self.stride, padding=self.padding, groups=self.groups)
+        kernel, bias = self.get_equivalent_kernel_bias()
+        self.equivalent_conv.weight.data = kernel
+        self.equivalent_conv.bias.data = bias
+        self.deploy = True
 
 
 class EDFEA(nn.Module):
